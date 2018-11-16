@@ -16,6 +16,7 @@
       <itemPath>uart.h</itemPath>
       <itemPath>ultr.h</itemPath>
       <itemPath>utils.h</itemPath>
+      <itemPath>led.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -36,6 +37,7 @@
       <itemPath>uart.c</itemPath>
       <itemPath>ultr.c</itemPath>
       <itemPath>utils.c</itemPath>
+      <itemPath>led.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

@@ -37,6 +37,7 @@
  */
 #include <xc.h>
 #include <stdio.h>
+#include <plib.h>
 #include "config.h"
 #include <math.h>
 #include "adc.h"
@@ -51,11 +52,23 @@
 #include "ultr.h"
 #include "utils.h"
 
-#define SYS_FREQ()
+#define SYS_FREQ (80000000L)
+#define INTSEC 10
+#define CORE_TICK_RATE (SYS_FREQ / 2 / INTSEC)
 
 int counter = 0;
+int stoppedLeft = 0;
+int stoppedRight = 0;
+
+int clockwise = 900;
+int cClockwise = 2100;
+int stop = 1500;
 
 main (void){
+    INTConfigureSystem(INT_SYSTEM_CONFIG_MULT_VECTOR);
+    OpenCoreTimer(CORE_TICK_RATE); //CoreTimer used for tenths of second capture
+    mConfigIntCoreTimer((CT_INT_ON | CT_INT_PRIOR_5 | CT_INT_SUB_PRIOR_0));
+    INTEnableSystemMultiVectoredInt(); //Enable Timer interrupts
     ADC_Init();
     delay_ms(100);
     BTN_Init();
@@ -74,7 +87,7 @@ main (void){
     delay_ms(100);
     LED_Init();
     delay_ms(100);
-    LCD_WriteStringAtPos("Team: 1",0,0);
+    LCD_WriteStringAtPos("Tm:1 Beebo 3:2",0,0);
     char swtRight[2];
     char swtLeft[2];
     while(1){
@@ -84,32 +97,36 @@ main (void){
         swtLeft[1] = SWT_GetValue(7);
         //check sw0 and sw0
         if(swtRight[0]==0 && swtRight[1]==0){//stop
-            LCD_WriteStringAtPos("STP",1,0);
-            SRV_SetPulseMicroseconds0(1500);
+            LCD_WriteStringAtPos("STP",1,10);
+            stoppedRight = 1;
+            SRV_SetPulseMicroseconds0(stop);
             LED_SetValue(3,0);
             LED_SetValue(2,0);
             LED_SetValue(1,0);
             LED_SetValue(0,0);
         }
         else if(swtRight[0]==1 && swtRight[1]==0){//forward
-            LCD_WriteStringAtPos("FWD",1,0);
-            SRV_SetPulseMicroseconds0(1400);
+            LCD_WriteStringAtPos("FWD",1,10);
+            stoppedRight = 0;
+            SRV_SetPulseMicroseconds0(clockwise);
             LED_SetValue(3,1);
             LED_SetValue(2,1);
             LED_SetValue(1,0);
             LED_SetValue(0,0);
         }
         else if(swtRight[0]==0 && swtRight[1]==1){//reverse
-            LCD_WriteStringAtPos("REV",1,0);
-            SRV_SetPulseMicroseconds0(1600);
+            LCD_WriteStringAtPos("REV",1,10);
+            stoppedRight = 0;
+            SRV_SetPulseMicroseconds0(cClockwise);
             LED_SetValue(3,0);
             LED_SetValue(2,0);
             LED_SetValue(1,1);
             LED_SetValue(0,1);
         }
         else if(swtRight[0]==1 && swtRight[1]==1){//stop
-            LCD_WriteStringAtPos("STP",1,0);
-            SRV_SetPulseMicroseconds0(1500);
+            LCD_WriteStringAtPos("STP",1,10);
+            stoppedRight = 1;
+            SRV_SetPulseMicroseconds0(stop);
             LED_SetValue(3,0);
             LED_SetValue(2,0);
             LED_SetValue(1,0);
@@ -117,32 +134,36 @@ main (void){
         }
         //check sw6 and sw7
         if(swtLeft[0]==0 && swtLeft[1]==0){//stop
-            LCD_WriteStringAtPos("STP",1,10);
-            SRV_SetPulseMicroseconds1(1500);
+            LCD_WriteStringAtPos("STP",1,0);
+            stoppedLeft = 1;
+            SRV_SetPulseMicroseconds1(stop);
             LED_SetValue(7,0);
             LED_SetValue(6,0);
             LED_SetValue(5,0);
             LED_SetValue(4,0);
         }
         else if(swtLeft[0]==1 && swtLeft[1]==0){//forward
-            LCD_WriteStringAtPos("FWD",1,10);
-            SRV_SetPulseMicroseconds1(1600);
+            LCD_WriteStringAtPos("FWD",1,0);
+            stoppedLeft = 0;
+            SRV_SetPulseMicroseconds1(cClockwise);
             LED_SetValue(7,0);
             LED_SetValue(6,0);
             LED_SetValue(5,1);
             LED_SetValue(4,1);
         }        
         else if(swtLeft[0]==0 && swtLeft[1]==1){//reverse
-            LCD_WriteStringAtPos("REV",1,10);
-            SRV_SetPulseMicroseconds1(1400);
+            LCD_WriteStringAtPos("REV",1,0);
+            stoppedLeft = 0;
+            SRV_SetPulseMicroseconds1(clockwise);
             LED_SetValue(7,1);
             LED_SetValue(6,1);
             LED_SetValue(5,0);
             LED_SetValue(4,0);
         }
         else if(swtLeft[0]==1 && swtLeft[1]==1){//stop
-            LCD_WriteStringAtPos("STP",1,10);
-            SRV_SetPulseMicroseconds1(1500);
+            LCD_WriteStringAtPos("STP",1,0);
+            stoppedLeft = 1;
+            SRV_SetPulseMicroseconds1(stop);
             LED_SetValue(7,0);
             LED_SetValue(6,0);
             LED_SetValue(5,0);
@@ -154,7 +175,15 @@ main (void){
 
 void __ISR(_CORE_TIMER_VECTOR, ipl5) _CoreTimerHandler(void){
     mCTClearIntFlag();
-    counter++;
+    if(stoppedLeft==0 || stoppedRight==0){
+        update_SSD(counter);
+        counter++;
+    }
+    else if(stoppedLeft==1 && stoppedRight==1){
+        counter=0;
+        update_SSD(counter);
+    }
+    UpdateCoreTimer(CORE_TICK_RATE);
 }
 
 void delay_ms(int ms) {
